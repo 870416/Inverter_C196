@@ -8,6 +8,14 @@
 #include <KB_FUNCS.H>
 #include "da502d1.h"
 #include "inits.h"
+/*
+  da502f1.c中函数原型申明 
+  配用  CSMA502_001E，2003/04/10 
+  改动之处：
+  1、欠压时只降频不封前级；
+  2、每次加载前需通风50S。
+*/
+
 /**/
 /* 80C196KC初始化； */
 void init196()
@@ -49,8 +57,8 @@ void init485()
 {
     disable();
 /* 曾因写ioport0而引起通讯错误，实际是写的波特率！！！*/
-      baud_rate=0x33;  /* 16MHz/(bt(bps)*16)-1,cfH-4800;67H-9600 */
-      /* 33H-19200;为与SMA接口，波特率应取19200 */
+      baud_rate=0x6b;  /* 16MHz/(bt(bps)*16)-1,cfH-4800;67H-9600 */
+      /* 为配合操纵板，波特率实际为9259 */
       baud_rate=0x80;  /* 高位为1选内部时钟，6M-0x26    */
       rsp_c=0x09;      /* 曾因直接对sp_con进行操作而引起通讯错*/
       sp_con=rsp_c;    /* MODE=1               */
@@ -60,7 +68,7 @@ void init485()
       rsb2=0;
       ptrb3=(BYTE *) ADDR_MEM1;
       ptrb4=(BYTE *) ADDR_MEM2;
-      E_485r; 
+      E_485t; 
     enable();
 	return;
 }
@@ -85,7 +93,7 @@ void initsys()
     (*msg1).u2_h =0x00;
     (*msg1).i1   =0x00;
     (*msg1).i2   =0x00;
-    (*msg1).fend =F_ENDC/10;
+    (*msg1).fend =50;
     (*msg1).fnow=(*msg1).fnowc/10;
     (*msg1).send =0x00;
     (*msg1).snow =0x00;
@@ -170,7 +178,7 @@ void treaterro()
     (*msg1).ec2=tempb1;   /* 故障信号外传 */
     if((s_erro & 0x07)!=0x07) (*msg1).snow&=0x0c; /* IGBT故障停机 */  
 	if(tempb1 & 0x80);
-	  else { tempb0&=0xf3;} /* .7，   前级欠压   */
+	  else { tempb0&=0xfb;} /* .7，   前级欠压时允许升压   */
 /*	
     if(tempb1 & 0x40);
 	  else { tempb0&=0xf7;} 
@@ -194,7 +202,7 @@ void treaterro()
     if(s_set!=0xfd)  /* 调试时不控 */
     {
 	  if((*msg1).u1>=145) { tempb0&=0xf3;}   /* 前级电压过高！   */
-	  if(tempw0<=350)     { tempb0&=0xfb;}   /* 中间电压不足！   */
+	  if(tempw0<=300)     { tempb0&=0xfb;}   /* 中间电压不足！   */
     }
 	if(tempw0>=580) { tempb0&=0xf7;}   /* 中间电压过高！   */
 	if(tempw0>=600) { tempb0&=0xf1;}   /* 中间电压危险！   */
@@ -237,9 +245,15 @@ void treatmess()  /* 信息处理、工况控制、电机控制 */
 	    if(tempb2 == 0x02) 	tempb2=0x01; 
 	  if(tempb1 & 0x08)              /* 制热故障制热转通风 */
 	    if(tempb2 == 0x03)  tempb2=0x01;
-      tempw0=(*msg1).t0a;            /* 通风不足不许制冷 */
-        if(tempw0<1000)              /* 50S */
-	      if(tempb2  == 0x02) tempb2=0x01;
+	    
+      tempw0=(*msg1).t0a;         /* 防止短时反复加载 */   
+	    if(((*msg1).snow & 0x03)==0x01)  tempw0++;
+	      else  tempw0=0;            /* 通风工况计时 */
+	    if(tempw0>500) tempw0=500;   /* 50S */
+        if((tempb2 & 0x02)>((*msg1).snow & 0x02)) 
+          if(tempw0<500)  tempb2=0x01;/* 通风不足不许加载 */
+	    (*msg1).t0a=tempw0;
+	      
       tempw0=(*msg1).fnow;           /* 频率>6Hz不许加载 */
         if((tempb2 & 0x02)>((*msg1).snow & 0x02)) 
         { if(tempw0>=6)  
@@ -316,27 +330,37 @@ void treatmess()  /* 信息处理、工况控制、电机控制 */
 }
 
 void mc_off()    /* 接触器控制之分断 */  
-{  	
-   /*  继电器控制策略    */ 
-   if(c_nb2==0x00)   /* 正常灯 */
-   { 
-     disable();hso_command=0x24;hso_time=timer1+0x04;enable();
-   }  
-     else 
-     { 
-        disable();hso_command=0x04;hso_time=timer1+0x04;enable();
-     }  
-   tempb1  = p_erro;
-     tempb1 &= s_erro;
-     tempb1 |= 0x58;   /* 过流和中间电压异常不向外反映 */
-   if((tempb1!=0xff)&&((*msg1).dt45m<45))   /* 故障灯 */
-   { 
-     disable();hso_command=0x25;hso_time=timer1+0x04;enable();
-   }   	
-     else 
-     { 
-       disable();hso_command=0x05;hso_time=timer1+0x04;enable();
-     }	
+{  	tempb1=(*msg1).snow;
+  	if(tempb1 & 0x10);  /* 通风机分断 */
+      else
+        { disable();hso_command=0x00; hso_time=timer1+4;enable(); }
+  	if(tempb1 & 0x20);  /* 冷凝机分断 */
+      else
+        { disable();hso_command=0x01; hso_time=timer1+4;enable(); }
+  	if(tempb1 & 0x40);  /* 压缩机分断 */
+      else
+        { disable();hso_command=0x02; hso_time=timer1+4;enable(); }
+  	if(tempb1 & 0x80);  /* 电加热分断 */
+      else
+        { disable();hso_command=0x03; hso_time=timer1+4;enable(); }
+    tempb1&=0x0c;
+    switch(tempb1)  
+    {
+      case 0x04:  /* 一端 */
+          { disable();hso_command=0x05; hso_time=timer1+4;enable();
+            break;
+          }
+      case 0x08:  /* 二端 */
+          { disable();hso_command=0x04; hso_time=timer1+4;enable();
+            break;
+          }
+      default:    /* 无效停机 */
+          { disable();hso_command=0x04; hso_time=timer1+4;enable();
+        	  tempb2+=2;tempb2-=2;
+        	disable();hso_command=0x05; hso_time=timer1+4;enable();
+            break;
+          }
+    }
 	return;
 }
 
@@ -735,9 +759,10 @@ BYTE port0_num;
 
 void motorp()   /* 电机过流保护、定时、恢复(20min)  */
 {
-    (*msg1).t0a++;       /* 通风机连续工作时间 */
+	 /* 通风机连续工作时间 */
+/*	(*msg1).t0a++;      
       if((*msg1).t0a>=1000)  (*msg1).t0a=1000;
-
+*/
 	if((*msg1).m0a>=I017) { (*msg1).m0a=0;(*msg1).ec1|=0x01;}
 	if((*msg1).m1a>=I117) { (*msg1).m1a=0;(*msg1).ec1|=0x02;}
 	if((*msg1).m2a>=I217) { (*msg1).m2a=0;(*msg1).ec1|=0x04;}
@@ -758,7 +783,7 @@ void motorp()   /* 电机过流保护、定时、恢复(20min)  */
 }	
 
 void chk_data()
-{	
+{
 	(*msg2).wenda=0x00;
 	(*msg2).wendb=0x00;
 	(*msg2).wendc=0x00;
@@ -908,3 +933,4 @@ RS485通讯函数：
    定时函数。
 */   
 /**/
+

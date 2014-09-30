@@ -5,7 +5,7 @@
 
 #include "inits.h"
 /******************************************************
-   配用  WJDA502_002 
+   The current code is based on CSMA502_001E
    dr502f1.c中函数原型申明 
    天津滨海线5KVA应急电源用
 ******************************************************/   
@@ -35,12 +35,11 @@ BYTE     s_control,s_ok,s_send;
 
 
 //------------------------------------------------------------------------
-
 #pragma interrupt(hso_int=3)   /* 定时用         */
 #pragma interrupt(soft_int=5)  /* 逆变器控制用   */
 #pragma interrupt(rs485_int=6) /* 串口中断用     */
 #pragma interrupt(ext_int=7)   /* 故障处理用     */
-#include "da502d1.h"
+
 void hso_int() /* 120S */
 {
     hso_command=0x13;    /* 0001,0101,HSO.3=0   */
@@ -146,6 +145,9 @@ void ext_int()  /* 故障处理 */
     /* 如何与显示、通讯相配   */
 	return;	
 }
+
+
+
  
 void main()   /* 主程序 */
 {
@@ -168,15 +170,14 @@ void main()   /* 主程序 */
   {
   	/*  看门狗  */
   	    E_watchdog;
-  	/*  系统定时45分,应急电源用  */
- 	    delay45m();   
+  	/*  系统定时45分  */
+/*  	    delay45m();   */
   	/*  信息搜集   */
     	/*  八路参数采样（分散），查询方式   */
     	{
           if(s_time0 != (*msg1).bt10)
           {
           	(*msg1).bt10=s_time0;
-/*
           	tempb0=(*msg1).bt10%5;
           	switch(tempb0)
           	{
@@ -186,7 +187,6 @@ void main()   /* 主程序 */
           		case 3 :measure1(3);break;
                 default:motorp()   ;break;
       		}
-*/
 	      }  
     	  measure1(0x04)  ;  
     	  measure1(0x05)  ;  
@@ -206,13 +206,9 @@ void main()   /* 主程序 */
           	tempw1=(*msg1).fnowc;
         	if(s_control & 0x04) tempw1++;
             	else             tempw1-=5;  /* 故障时降频加速 */
-            /* 工况转换降频 */
-/*            
-            tempw1-=(*msg1).addl;	     
+            tempw1-=(*msg1).addl;	     /* 工况转换降频 */
             if((*msg1).snow & 0x03);  
-              else  tempw1=F_STARTC;  
-*/  
-            /* 停机状态频率回到起点 */
+              else  tempw1=F_STARTC;   /* 停机状态频率回到起点 */
             if(tempw1 >= F_ENDC)   tempw1=F_ENDC; /* 运行频率限制 */
             if(tempw1 <= F_STARTC) tempw1=F_STARTC;
             (*msg1).fnowc=tempw1;  /* 过程用中间变量，结果一言而决 */
@@ -222,11 +218,11 @@ void main()   /* 主程序 */
             tempb0=(*msg1).bt20 %5;
             switch(tempb0)
             {
-            	case 0 :{ break;}
-            	case 1 :{ /* treatmess() */ ;break;} /* 信息处理、工况控制 */
+            	case 0 :{ E_485t;rsb1=0;sbuf=*(ptrb3+rsb1);rsb2=10;break;}
+            	case 1 :{ treatmess()     ;break;} /* 信息处理、工况控制 */
             	case 2 :{ mc_off();disp() ;break;} /* 电机分断、数码显示 */
-            	case 3 :{ break;} 
-            	case 4 :{ /* chk_data()  */ ;break;} /* 通讯数据处理 */
+            	case 3 :{ mc_off();mc_on();break;} /* 先分后合，防止意外 */
+            	case 4 :{ chk_data()      ;break;} /* 通讯数据处理 */
             	default:break;
         	}
           }
@@ -283,7 +279,3 @@ void main()   /* 主程序 */
         }
   }
 }
-
-
-
-
