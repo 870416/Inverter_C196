@@ -76,7 +76,7 @@ P2.7:DS1820口线;
 #define ADDR_WID  0x6100  /* 27256，电压频率对照表首地址,         */
 #define ADDR_SIN  0x7000  /* 27256，正弦表首地址,                 */
 //below stores in 6264
-#define ADDR_MEM1 0x8000  /* 6264，系统数据存贮区首地址，256,     */
+#define ADDR_MEM1 0x8000  /* 6264，系统数据存贮区首地址，256,     It's also sent to 51 MCU*/
 #define ADDR_MEM2 0x8100  /* 6264，接收区首地址，        256,     */
 #define ADDR_CA0  0x9000  /* 6264，计算区0首地址，2K,             */  
 #define ADDR_CA1  0x9800  /* 6264，计算区1首地址，2K,             */    
@@ -88,9 +88,9 @@ P2.7:DS1820口线;
 
 extern BYTE    rsb0, rsb1, rsb2, rsp_c;
 /* 通讯用，0/共用，1/发送计数，2/接收计数，rsp_c/sp_con映射 */
-extern BYTE    *ptrb0, *PWM_out_ptr, *ptrb2, *send_buf_ptr, *rec_buf_ptr;
+extern BYTE    *ptrb0, *PWM_out_ptr, *Ptr_8255, *send_buf_ptr, *rec_buf_ptr;
 /*  0/公用,1/开关模式,2/故障口，3/发送区首指针，4/接收区首指针  */
-extern UI      *ptrw0, *ptrw1, *ptrw2, *ptrw3, *ptrw4;
+extern UI      *ptrw0, *ptrw1, *ptrw2,  *ptrw4;
 /* 0/公用，1/正弦表头，2/正弦表尾，3/时间计算表，4/时间发送表 */
 extern BYTE    io1, io2;         /*  端口影射      */
 extern BYTE    PWM_shutdown; /*  逆变控制变量  */
@@ -116,10 +116,10 @@ extern   UNA tempbw0, tempbw1;
 extern BYTE     num2[2];    /* 分段数，0-当前，1-预备 */
 extern BYTE     s_x1, s_ii1, s_ii2, s_ii3;
 extern UI       Sys_tic_10ms;
-extern BYTE     s_control, s_ok, s_target_mode;
+extern BYTE     s_control, s_ok, Cur_addr_ca;
 /* 7/首次计算，6/数据有效，5/当前发送区，4/未用，*/
 /* 3/升压允许，2/升频    ，1/逆变允许  ，0/逆变过程，*/
-/* 为提高编译效率，将位6，5单列为s_ok，s_target_mode */
+/* 为提高编译效率，将位6，5单列为s_ok，Cur_addr_ca */
 
 typedef struct
 {

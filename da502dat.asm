@@ -207,6 +207,7 @@ L6800:
       DCW 0360H,0363H,0365H,0368H,036AH,036CH,036FH,0371H,0374H,0376H ;231-240 
 
 ;0-60度统一正弦表（2^10XSIN（KX60/240）=2^10XSIN（K/4） 优于前表
+; the result is the digital output DAC value corresponding to sin(k/4)
 ORG   7000H
 L7000:
       DCW 0000H

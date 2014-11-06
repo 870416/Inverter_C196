@@ -22,10 +22,10 @@ MESSAGE2 *msg2;
 BYTE    rsb0, rsb1, rsb2, rsp_c;
 
 /*  0/公用,1/开关模式,2/故障口，3/发送区首指针，4/接收区首指针  */
-BYTE    *ptrb0, *PWM_out_ptr, *ptrb2, *send_buf_ptr, *rec_buf_ptr;
+BYTE    *ptrb0, *PWM_out_ptr, *Ptr_8255, *send_buf_ptr, *rec_buf_ptr;
 
 /* 0/公用，1/正弦表头，2/正弦表尾，3/时间计算表，4/时间发送表 */
-UI      *ptrw0, *ptrw1, *ptrw2, *ptrw3, *ptrw4;
+UI      *ptrw0, *ptrw1, *ptrw2,  *ptrw4;
 
 BYTE    io1, io2;         /*  端口影射      */
 BYTE    PWM_shutdown; /*  逆变控制变量  */
@@ -35,10 +35,10 @@ UI   tempw0, tempw1, tempw2, tempw3, tempw4, tempw5, tempw6, tempw7;
 BYTE     num2[2];    /* 分段数，0-当前，1-预备 */
 BYTE     s_x1, s_ii1, s_ii2, s_ii3;
 UI       Sys_tic_10ms;
-BYTE     s_control, s_ok, s_target_mode;
+BYTE     s_control, s_ok, Cur_addr_ca;
 /* 7/首次计算，6/数据有效，5/当前发送区，4/未用，*/
 /* 3/升压允许，2/升频    ，1/逆变允许  ，0/逆变过程，*/
-/* 为提高编译效率，将位6，5单列为s_ok，s_target_mode */
+/* 为提高编译效率，将位6，5单列为s_ok，Cur_addr_ca */
 
 
 
@@ -50,7 +50,7 @@ BYTE     s_control, s_ok, s_target_mode;
 
 void hso_int() /* 120S */
 {
-	hso_command = 0x13;    /* 0001,0101,HSO.3=0   */
+	hso_command = 0x13;    //bit6:0 timer1. bit5:0 pin= 0. bit4:1 enable interrupt; 0011: HSO.3  
 	hso_time = timer1 + 9997; /* 10mS,10000-3      */
 	enable();
 	int_mask = 0x20;
@@ -65,8 +65,8 @@ void hso_int() /* 120S */
 ********************************************/
 void soft_int()
 {
-	UI s_x2 = *ptrw4;
-	s_x2 -= AVG_ANSWER;
+	UI timer_interval = *ptrw4;
+	timer_interval -= AVG_ANSWER;
 	ptrw4++;
 
 	// output
@@ -77,8 +77,7 @@ void soft_int()
 
 	if (s_ii3 != (BYTE)0x02) 
 	{ 
-		s_ii3 += 2; 
-		s_ii3--; 
+		s_ii3 ++;  
 	}
 	else                
 	{ 
@@ -86,58 +85,68 @@ void soft_int()
 		s_ii2++; 
 		PWM_out_ptr -= 3; 
 	}
-	hso_command = 0x38;
-	hso_time = timer1 + s_x2;
+	hso_command = 0x38;  //bit6:0 timer1. bit5:1 set the pin. bit4:1 enable intterupt. 1000: software timer0
+	hso_time = timer1 + timer_interval;
 	PWM_out_ptr++;
 
 	io1 = s_x1;
 	ioport1 = io1;
-	if (s_ii2 == num2[0])
+
+	if (s_ii2 == num2[0])  //2 * num2[0]
 	{
 		s_ii2 = 0;
 		s_ii1++;
 		PWM_out_ptr += 3;
 		if (s_ok == (BYTE)0xff)  /* 数据有效则更换发送区，并置无效标志 */
 		{
-			s_target_mode ^= 0xff; 
+			Cur_addr_ca ^= 0xff; 
 			s_ok = 0x00; 
 			num2[0] = num2[1];
 		}
-		if (s_target_mode == (BYTE)0xff)  
+		if (Cur_addr_ca == (BYTE)0xff)  
 			ptrw4 = (UI *)ADDR_CA1;
 		else
 			ptrw4 = (UI *)ADDR_CA0;
-
 	}
-	if (s_ii1 == (BYTE)0x06) 
+
+	if (s_ii1 == (BYTE)0x06) // 6*2*num2[0]
 	{ 
 		s_ii1 = 0; 
-		PWM_out_ptr -= 18; 
+		PWM_out_ptr -= 18; //finish one cycle
 	}
+
 //Meaningless
 	while ( *ptrw4 == 0)
 	{
 		PWM_out_ptr++;
 		ptrw4++;
-		if (s_ii3 != (BYTE)0x02) { s_ii3++; }
-		else                { s_ii3 = 0; s_ii2++; PWM_out_ptr -= 3; }
+		if (s_ii3 != (BYTE)0x02) 
+		{ 
+			s_ii3++; 
+		}
+		else                
+		{ 
+			s_ii3 = 0; s_ii2++; PWM_out_ptr -= 3; 
+		}
+
 		if (s_ii2 == num2[0])
 		{
 			s_ii2 = 0;
 			s_ii1++;
 			PWM_out_ptr += 3;
+
 			if (s_ok == (BYTE)0xff)  /* 数据有效则更换发送区，并置无效标志 */
 			{
-				s_target_mode ^= 0xff; 
+				Cur_addr_ca ^= 0xff; 
 				s_ok = 0x00; 
 				num2[0] = num2[1];
 			}
-			if (s_target_mode == (BYTE)0xff)  
+			if (Cur_addr_ca == (BYTE)0xff)  
 				ptrw4 = (UI *)ADDR_CA1;
 			else
 				ptrw4 = (UI *)ADDR_CA0;
-
 		}
+
 		if (s_ii1 == (BYTE)0x06) 
 		{ 
 			s_ii1 = 0; 
@@ -174,13 +183,13 @@ void rs485_int()
 
 void ext_int()  /* 故障处理 */
 {
-	p_erro = *ptrb2;/* 读故障状态 */
+	p_erro = *Ptr_8255;/* 读故障状态 */
 	p_erro |= 0x20;
 	if ((p_erro & 0x07) != 0x07)  /* F1_V，F1_U，F2_A */
 	{
 		io1 = 0xff;
 		ioport1 = io1;   /* 即封后级 */
-		*(ptrb2 + 2) = 0x00; /* 即封前级 */
+		*(Ptr_8255 + 2) = 0x00; /* 即封前级 */
 		PWM_shutdown = 0xff;      /* 屏蔽后级 */
 		s_erro &= p_erro;
 		return;
@@ -192,7 +201,7 @@ void ext_int()  /* 故障处理 */
 	}
 	if ((p_erro & 0x10) == 0) /* I1H  */
 	{   /* 简单处理，主程序中后级降频 */
-		*(ptrb2 + 2) = 0x00;
+		*(Ptr_8255 + 2) = 0x00;
 	}
 	/* 如何解除前级封锁       */
 	/* 如何解除后级封锁       */
@@ -285,12 +294,12 @@ void main()   /* 主程序 */
 				(*msg1).cur_freqc = FREQ_MAX_LIMIT; /* 运行频率限制 */
 
 
-			if ((*msg1).cur_freqc <= F_STARTC) //F_startc becomes the minimum???
+			if ((*msg1).cur_freqc <= F_STARTC) //F_startc = minimum freq
 				(*msg1).cur_freqc = F_STARTC;
 
 			(*msg1).cur_freq = (*msg1).cur_freqc / 10;
 
-			if ((*msg1).cur_mode & 0x01)
+			if ((*msg1).cur_mode & 0x01) // fanning
 			{
 				disable();
 				hso_command = 0x14;    /* 0001,0100,HSO.4=0   */
@@ -347,14 +356,14 @@ void main()   /* 主程序 */
 			if ((*msg1).cur_freqc != (*msg1).pre_freqc)  /* 不变不算 */
 			{
 				(*msg1).pre_freqc = (*msg1).cur_freqc;
-				time_cal();
+				time_cal(); //change ADDR_CA1; set up s_ok = 0xff
 			}
 		}
 
 		if (s_control & 0x80) //First time calculation
 		{
 			s_control &= 0x3f;	/* 清首次计算标志，置数据无效 */
-			s_target_mode    ^= 0xff;  /* 转换当前发送区 */
+			Cur_addr_ca ^= 0xff;  /* 转换当前发送区 */
 			s_ok = 0x00;
 
 			num2[0] = num2[1];
@@ -362,13 +371,14 @@ void main()   /* 主程序 */
 			s_ii2 = 0;  /* 段数 */
 			s_ii3 = 0;  /* 节数 */
 			/* 时间模式指针 */
-			if (s_target_mode == (BYTE)0xff) 
-				tempw0 = ADDR_CA1;
+			// the data in this address have been changed in the cal_time() 
+			// and there are only 3 unsigned int (8bytes) data.
+			if (Cur_addr_ca == (BYTE)0xff) 
+				ptrw4 = ADDR_CA1;
 			else
-				tempw0 = ADDR_CA0;
+				ptrw4 = ADDR_CA0;     //the first time is CA0
 
-			ptrw4 = (UI *)tempw0;
-
+			// why ==0 ???
 			for (; *ptrw4 == 0; ptrw4++)
 			{
 				PWM_out_ptr++;
@@ -391,14 +401,13 @@ void main()   /* 主程序 */
 
 					if (s_ok == (BYTE)0xff)  /* 数据有效则更换发送区，并置无效标志 */
 					{
-						s_target_mode ^= 0xff; s_ok = 0x00; num2[0] = num2[1];
+						Cur_addr_ca ^= 0xff; s_ok = 0x00; num2[0] = num2[1];
 					}
 
-					if (s_target_mode == (BYTE)0xff) 
-						tempw0 = ADDR_CA1;
+					if (Cur_addr_ca == (BYTE)0xff) 
+						ptrw4 = ADDR_CA1;
 					else
-						tempw0 = ADDR_CA0;
-					ptrw4 = (UI *)tempw0;
+						ptrw4 = ADDR_CA0;
 				}
 				if (s_ii1 == (BYTE)0x06) 
 				{ 
@@ -409,7 +418,7 @@ void main()   /* 主程序 */
 			// This is the first time to initialize software timer0 PWM output.
 			// So when the interrupt's triggered, everything is ready to output.
 			disable();
-			hso_command = 0x38; 
+			hso_command = 0x38; //bit6:0 timer1. bit5:1 set the pin. bit4:1 enable intterupt. 1000: software timer0
 			hso_time = timer1 + 0x04;
 			enable();
 		}

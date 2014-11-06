@@ -43,10 +43,10 @@ void init196()
 /*  8255初始化； */
 void init8255()
 {
-	ptrb2 = (BYTE *)ADDR_8255;
-	*(ptrb2 + 3) = 0x90;  /* (A：输入，B、C输出) */
-	*(ptrb2 + 1) = 0xff;  /* 数码管全亮          */
-	*(ptrb2 + 3) = 0x00;  /* 禁止前级逆变,PC.0=0 */
+	Ptr_8255 = (BYTE *)ADDR_8255;
+	*(Ptr_8255 + 3) = 0x90;  /* (A：输入，B、C输出) */
+	*(Ptr_8255 + 1) = 0xff;  /* 数码管全亮          */
+	*(Ptr_8255 + 3) = 0x00;  /* 禁止前级逆变,PC.0=0 */
 	return;
 }
 
@@ -81,7 +81,7 @@ void init1820()
 void initsys()
 {
 	PWM_out_ptr = (BYTE *)ADDR_MOD;  /* 开关模式指针 */
-	ptrb2 = (BYTE *)ADDR_8255; /* 故障口指针   */
+	Ptr_8255 = (BYTE *)ADDR_8255; /* 故障口指针   */
 
 	/* 停机备用状态 */
 	msg1 = (MESSAGE1 *)ADDR_MEM1;
@@ -153,7 +153,7 @@ void initsys()
 	s_erro = 0xff;
 	s_control = 0xb4;   /* 1011,0100 ，曾因写成0xc4而出错！！！！ */
 	s_ok = 0x00;
-	s_target_mode = 0xff;
+	Cur_addr_ca = 0xff;
 	PWM_shutdown = 0xff;
 
 	int_mask |= 0xa0;   /* 1010,0000,      */
@@ -211,7 +211,7 @@ BYTE xx2;
 xx1%=16;
 ptrb0=(BYTE *)ADDR_DIS;
 xx2=*(ptrb0+xx1);
-*(ptrb2+1)=xx2;
+*(Ptr_8255+1)=xx2;
 }
 */
 
@@ -274,7 +274,7 @@ void disp()
 	}
 	ptrb0 = (BYTE *)ADDR_DIS;
 	err_num = *(ptrb0 + tempb1);
-	*(ptrb2 + 1) = err_num;
+	*(Ptr_8255 + 1) = err_num;
 	;
 	return;
 }

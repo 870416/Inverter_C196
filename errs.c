@@ -6,7 +6,7 @@
 void Exception_handler()
 {
 	/*  故障口数据读取         */
-	p_erro = *(ptrb2 + 0);
+	p_erro = *(Ptr_8255 + 0);
 	p_erro |= 0x20;     /* PA.5位悬而未用  */
 	tempb0 = s_control;
 	tempb0 |= 0x0f;
@@ -55,7 +55,7 @@ void Exception_handler()
 	tempb1 = 0x00;  /* 前级控制 */
 	if (tempb0 & 0x08)
 		tempb1 = 0x01;
-	*(ptrb2 + 3) = tempb1;
+	*(Ptr_8255 + 3) = tempb1;
 
 	/* 曾因对PWM_shutdown多次置数，使控制产生不应有的毛刺，用过渡变量解决！！！
 	因有中断的原因，控制变量应一言而决 */

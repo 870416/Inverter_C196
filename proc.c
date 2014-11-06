@@ -268,156 +268,154 @@ void proc_RS485_buff()
 
 /* 主处理函数，*/
 /* tempb0/步距   ，               */
-/* tempw0/调制比 , tempw1/Ts , tempw2 , tempw3 /2^10*M*TS 低/高字   */
+/* freq/调制比 , tempw1/Ts , tempw2 , tempw3 /2^10*M*TS 低/高字   */
 /* 频率确定   */
 /* 分段数确定 ,tempb1,tempw1 */
 
 /* 参数计算   */
+//---------------------------------------------------------
+//   Calculate the time for each output
+//   The results store into ADDR_CA0/1
+//   a number of num2[1]*3 data have been updated.
+//
 void time_cal()   /* 用外部RAM */
 {
-	tempw0 = (*msg1).cur_freqc;
-	if (tempw0 > 500) tempw0 = 500;	//TODO: 500 is invalid value?? since max limit = 350?
-	/* tempw0=300;        */
+	UI freq = (*msg1).cur_freqc;
+	UI voltage = 0;
+	UI *ptrw3;
+	UI *ptr_sin1, *ptr_sin2;
+	BYTE tmp;
+	if (freq > 500) freq = 500;	
+	/* freq=300;        */
 	/* 分段数确定,转折频率<8K */
-	if (tempw0 < 111)  num2[1] = 120;
-	else if (tempw0 < 167)  num2[1] = 80;
-	else if (tempw0 < 222)  num2[1] = 60;
-	else if (tempw0 < 278)  num2[1] = 48;
-	else if (tempw0 < 333)  num2[1] = 40;
-	else if (tempw0 < 444)  num2[1] = 30;
-	else if (tempw0 < 556)  num2[1] = 24;
-	else if (tempw0 < 667)  num2[1] = 20;
-	else                    num2[1] = 15;
+	if (freq < 111)  num2[1] = 120;
+	else if (freq < 167)  num2[1] = 80;
+	else if (freq < 222)  num2[1] = 60;
+	else if (freq < 278)  num2[1] = 48;
+	else if (freq < 333)  num2[1] = 40;
+	else if (freq < 444)  num2[1] = 30;
+	else if (freq < 556)  num2[1] = 24;
+	else if (freq < 667)  num2[1] = 20;
+	else                  num2[1] = 15;
 
 	/* 分段数确定,转折频率<5K */
 	/*
-	if  (tempw0< 69)  num2[1]=120;
-	else if  (tempw0<104)  num2[1]= 80;
-	else if  (tempw0<139)  num2[1]= 60;
-	else if  (tempw0<208)  num2[1]= 40;
-	else if  (tempw0<277)  num2[1]= 30;
-	else if  (tempw0<347)  num2[1]= 24;
-	else if  (tempw0<417)  num2[1]= 20;
-	else if  (tempw0<556)  num2[1]= 15;
-	else if  (tempw0<694)  num2[1]= 12;
+	if  (freq< 69)  num2[1]=120;
+	else if  (freq<104)  num2[1]= 80;
+	else if  (freq<139)  num2[1]= 60;
+	else if  (freq<208)  num2[1]= 40;
+	else if  (freq<277)  num2[1]= 30;
+	else if  (freq<347)  num2[1]= 24;
+	else if  (freq<417)  num2[1]= 20;
+	else if  (freq<556)  num2[1]= 15;
+	else if  (freq<694)  num2[1]= 12;
 	else                   num2[1]=  8;
 	*/
 	/* 分段数确定,转折频率<4K */
 	/*
-	if  (tempw0< 56)  num2[1]=120;
-	else if  (tempw0< 83)  num2[1]= 80;
-	else if  (tempw0<111)  num2[1]= 60;
-	else if  (tempw0<167)  num2[1]= 40;
-	else if  (tempw0<222)  num2[1]= 30;
-	else if  (tempw0<278)  num2[1]= 24;
-	else if  (tempw0<333)  num2[1]= 20;
-	else if  (tempw0<444)  num2[1]= 15;
-	else if  (tempw0<555)  num2[1]= 12;
+	if  (freq< 56)  num2[1]=120;
+	else if  (freq< 83)  num2[1]= 80;
+	else if  (freq<111)  num2[1]= 60;
+	else if  (freq<167)  num2[1]= 40;
+	else if  (freq<222)  num2[1]= 30;
+	else if  (freq<278)  num2[1]= 24;
+	else if  (freq<333)  num2[1]= 20;
+	else if  (freq<444)  num2[1]= 15;
+	else if  (freq<555)  num2[1]= 12;
 	else                   num2[1]=  8;
 	*/
 	/* 分段数确定,转折频率<3K */
 	/*
-	if  (tempw0< 42)  num2[1]=120;
-	else if  (tempw0< 63)  num2[1]= 80;
-	else if  (tempw0< 83)  num2[1]= 60;
-	else if  (tempw0<125)  num2[1]= 40;
-	else if  (tempw0<167)  num2[1]= 30;
-	else if  (tempw0<208)  num2[1]= 24;
-	else if  (tempw0<250)  num2[1]= 20;
-	else if  (tempw0<333)  num2[1]= 15;
-	else if  (tempw0<417)  num2[1]= 12;
+	if  (freq< 42)  num2[1]=120;
+	else if  (freq< 63)  num2[1]= 80;
+	else if  (freq< 83)  num2[1]= 60;
+	else if  (freq<125)  num2[1]= 40;
+	else if  (freq<167)  num2[1]= 30;
+	else if  (freq<208)  num2[1]= 24;
+	else if  (freq<250)  num2[1]= 20;
+	else if  (freq<333)  num2[1]= 15;
+	else if  (freq<417)  num2[1]= 12;
 	else                   num2[1]=  8;
 	*/
 
 	// Read corresponding output voltage for the freq. from v/f table
 	ptrw1 = (UI *)ADDR_WID;
-	tempbw0.ll = *(ptrw1 + tempw0); /* 不能直接用两个字乘 */
+	tempbw0.ll = *(ptrw1 + freq); /* 不能直接用两个字乘 */
 	tempbw0.ll *= 1060;  /* 电压修正 530V*2    */
-
 	/* 取消修正，稳频 */
-	tempbw0.ll /= 530;
-	tempw0 = tempbw0.bw.lo;
+	tempbw0.ll /= 530;   // so I find a voltage corresponding to freq.
+	voltage = tempbw0.bw.lo;  //voltage * 2
+
 
 	/* 查表指针 */
-	tempw4 = 240;
-	tempw4 /= num2[1];
+	tempw4 = 240 / num2[1];
 	tempb0 = tempw4;  /* 双字节 */
-	tempw4 >>= 1;
-	tempw5 = 240;     /* 不要用复杂算式 */
-	tempw5 -= tempb0;
-	tempw5 += tempw4;
-
-	ptrw1 = (UI *)ADDR_SIN;
-	ptrw2 = (UI *)ADDR_SIN;
-	ptrw1 += tempw4;       /*  SIN（A）*/
-	ptrw2 += tempw5;       /*  SIN（60-A）*/
-
-	if (s_target_mode == (BYTE)0xff)
-		ptrw3 = (UI *)ADDR_CA0;
-	else
-		ptrw3 = (UI *)ADDR_CA1;
+	tempw4 >>= 1;   
+	tempw5 = 240 - tempb0 + tempw4;/* 不要用复杂算式 */
+	ptr_sin1 = (UI *)ADDR_SIN;
+	ptr_sin2 = (UI *)ADDR_SIN;
+	ptr_sin1 += tempw4;       /*  SIN（A）*/
+	ptr_sin2 += tempw5;       /*  SIN（60-A）*/
 
 
-	tempbw0.ll = (*msg1).cur_freqc;
-	tempbw0.ll *= num2[1]; /* 10F*N */
+
+	tempbw0.ll = (*msg1).cur_freqc * num2[1]; /* 10F*N */
 	tempw7 = tempbw0.bw.lo;
-	tempbw0.ll = 0x196e6b;       /* 10*fosc/6/16 */
-	tempbw0.ll /= tempw7;
-	tempw1 = tempbw0.bw.lo;      /* Ts */
+	tempbw0.ll = 0x196e6b / tempw7; /* 10*fosc/6/16 */
+	UI Ts = tempbw0.bw.lo;      /* Ts */
 
-	tempbw0.ll = tempw0;
-	tempbw0.ll *= tempw1;
-	tempw2 = tempbw0.bw.lo;  /* TS*2^10*M 低字 */
-	tempw3 = tempbw0.bw.hi;  /* TS*2^10*M 高字 */
+	UNA amplitude;
+	amplitude.ll = voltage * Ts;
 
 	/* 时间计算 */
-	for (tempb1 = 0; tempb1 < num2[1]; tempb1++)
+	for (tmp = 0; tmp < num2[1]; tmp++)
 	{
-		tempw4 = *ptrw1;
-		tempbw0.ll = tempw4;
-		tempbw0.ll *= tempw2;
-		if (tempw3 == 0)
+		UNA caltime;
+		// for sin1
+		caltime.ll = *ptr_sin1;
+		caltime.ll *= amplitude.bw.lo;
+		if (amplitude.bw.hi == 0)
 		{
 			tempbw1.ll = 0;
 		}
 		else
 		{
-			tempbw1.ll = tempw4;
-			tempbw1.ll *= tempw3;
+			tempbw1.ll = *ptr_sin1;
+			tempbw1.ll *= amplitude.bw.hi;
 		}
-		tempbw1.ll += tempbw0.bw.hi;
-		tempbw1.ll >>= 4;    /* /2^20 */
+		tempbw1.ll += caltime.bw.hi;
+		tempbw1.ll >>= 4;    /* divided by 16 */
 		tempw4 = tempbw1.bw.lo;
-		ptrw1 += tempb0;
 
-		tempw5 = *ptrw2;
-		tempbw0.ll = tempw5;
-		tempbw0.ll *= tempw2;
-		if (tempw3 == 0)
+		// for sin2
+		caltime.ll = *ptr_sin2;
+		caltime.ll *= amplitude.bw.lo;
+		if (amplitude.bw.hi == 0)
 		{
 			tempbw1.ll = 0;
 		}
 		else
 		{
-			tempbw1.ll = tempw5;
-			tempbw1.ll *= tempw3;
+			tempbw1.ll = *ptr_sin2;
+			tempbw1.ll *= amplitude.bw.hi;
 		}
-		tempbw1.ll += tempbw0.bw.hi;
+		tempbw1.ll += caltime.bw.hi;
 		tempbw1.ll >>= 4;    /* /2^20 */
 		tempw5 = tempbw1.bw.lo;
-		ptrw2 -= tempb0;
-		tempw7 = tempw4;
-		tempw7 += tempw5;
-		if (tempw1 >= tempw7)
+		
+
+		// this is important to adjust the time
+		tempw7 = tempw4 + tempw5;
+		if (Ts >= tempw7)
 		{
-			tempw6 = tempw1;
-			tempw6 -= tempw7;
+			tempw6 = Ts     - tempw7;
 		}
 		else
 		{
 			tempw6 = 0;
-			tempw7 -= tempw1;
+			tempw7 = tempw7 - Ts    ;
 			tempw7 >>= 1;
+
 			if (tempw4 < tempw7)
 			{
 				tempw5 -= tempw7;
@@ -437,6 +435,7 @@ void time_cal()   /* 用外部RAM */
 				}
 			}
 		}
+
 		if (tempw6 <= TIMER0_MODIFY)  
 			tempw6 = 0;
 		else  
@@ -458,12 +457,22 @@ void time_cal()   /* 用外部RAM */
 		else if (tempw6 <= MIN_PULSE) 
 			tempw6 = MIN_PULSE;
 
+
+		if (Cur_addr_ca == (BYTE)0xff) // the first time is 0xff, so data save into CA0
+			ptrw3 = (UI *)ADDR_CA0;
+		else
+			ptrw3 = (UI *)ADDR_CA1;
+
 		*ptrw3 = tempw5;/* !!,顺序!! */
 		ptrw3++;
 		*ptrw3 = tempw4;
 		ptrw3++;
 		*ptrw3 = tempw6;
 		ptrw3++;
+
+		// for the next 
+		ptr_sin1 += tempb0;
+		ptr_sin2 -= tempb0;
 	}
 	s_ok = 0xff; /* 置数据有效标志 */
 	return;
