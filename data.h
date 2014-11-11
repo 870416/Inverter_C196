@@ -107,9 +107,9 @@ typedef union
 	BW     bw;
 }  UNA;
 extern   UNA tempbw0, tempbw1;
-#define  MIN_PULSE     0x1c   /* 最窄脉冲     */
+#define  MIN_PULSE     0x1c   /* 最窄脉冲  28   */
 #define  HALF_MIN_PULSE (MIN_PULSE>>1)
-#define  AVG_ANSWER    0x0e   /* 最快响应     */
+#define  AVG_ANSWER    0x0e   /* 最快响应 14     */
 #define  TIMER0_MODIFY 0x06   /* 休止时间修正,2*Tdead */
 #define  NUM6          0x06   /* 分区数       */
 #define  NUM3          0x03   /* 分节数        */

@@ -287,7 +287,7 @@ void time_cal()   /* 用外部RAM */
 	BYTE tmp;
 	if (freq > 500) freq = 500;	
 	/* freq=300;        */
-	/* 分段数确定,转折频率<8K */
+	/* 分段数确定,转折频率<8K */ // PWM carrier freq.
 	if (freq < 111)  num2[1] = 120;
 	else if (freq < 167)  num2[1] = 80;
 	else if (freq < 222)  num2[1] = 60;

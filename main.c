@@ -25,7 +25,7 @@ BYTE    rsb0, rsb1, rsb2, rsp_c;
 BYTE    *ptrb0, *PWM_out_ptr, *Ptr_8255, *send_buf_ptr, *rec_buf_ptr;
 
 /* 0/公用，1/正弦表头，2/正弦表尾，3/时间计算表，4/时间发送表 */
-UI      *ptrw0, *ptrw1, *ptrw2,  *ptrw4;
+UI      *ptrw0, *ptrw1, *ptrw2, *ptrw4;
 
 BYTE    io1, io2;         /*  端口影射      */
 BYTE    PWM_shutdown; /*  逆变控制变量  */
@@ -55,7 +55,7 @@ void hso_int() /* 120S */
 	enable();
 	int_mask = 0x20;
 	Sys_tic_10ms++;
-	if (Sys_tic_10ms >= 12000)  
+	if (Sys_tic_10ms >= 12000)
 		Sys_tic_10ms = 0;
 	return;
 }
@@ -67,92 +67,55 @@ void soft_int()
 {
 	UI timer_interval = *ptrw4;
 	timer_interval -= AVG_ANSWER;
-	ptrw4++;
 
 	// output
 	s_x1 = *PWM_out_ptr;
 	s_x1 |= PWM_shutdown;
 	io1 |= s_x1;
 	ioport1 = io1;
-
-	if (s_ii3 != (BYTE)0x02) 
-	{ 
-		s_ii3 ++;  
-	}
-	else                
-	{ 
-		s_ii3 = 0; 
-		s_ii2++; 
-		PWM_out_ptr -= 3; 
-	}
 	hso_command = 0x38;  //bit6:0 timer1. bit5:1 set the pin. bit4:1 enable intterupt. 1000: software timer0
 	hso_time = timer1 + timer_interval;
-	PWM_out_ptr++;
-
 	io1 = s_x1;
 	ioport1 = io1;
 
-	if (s_ii2 == num2[0])  //2 * num2[0]
+	do
 	{
-		s_ii2 = 0;
-		s_ii1++;
-		PWM_out_ptr += 3;
-		if (s_ok == (BYTE)0xff)  /* 数据有效则更换发送区，并置无效标志 */
-		{
-			Cur_addr_ca ^= 0xff; 
-			s_ok = 0x00; 
-			num2[0] = num2[1];
-		}
-		if (Cur_addr_ca == (BYTE)0xff)  
-			ptrw4 = (UI *)ADDR_CA1;
-		else
-			ptrw4 = (UI *)ADDR_CA0;
-	}
-
-	if (s_ii1 == (BYTE)0x06) // 6*2*num2[0]
-	{ 
-		s_ii1 = 0; 
-		PWM_out_ptr -= 18; //finish one cycle
-	}
-
-//Meaningless
-	while ( *ptrw4 == 0)
-	{
-		PWM_out_ptr++;
 		ptrw4++;
-		if (s_ii3 != (BYTE)0x02) 
-		{ 
-			s_ii3++; 
+		PWM_out_ptr++;
+		if (s_ii3 != (BYTE)0x02)
+		{
+			s_ii3++;
 		}
-		else                
-		{ 
-			s_ii3 = 0; s_ii2++; PWM_out_ptr -= 3; 
+		else
+		{
+			s_ii3 = 0;
+			s_ii2++;
+			PWM_out_ptr -= 3;
 		}
 
-		if (s_ii2 == num2[0])
+		if (s_ii2 == num2[0])  //2 * num2[0]
 		{
 			s_ii2 = 0;
 			s_ii1++;
 			PWM_out_ptr += 3;
-
 			if (s_ok == (BYTE)0xff)  /* 数据有效则更换发送区，并置无效标志 */
 			{
-				Cur_addr_ca ^= 0xff; 
-				s_ok = 0x00; 
+				Cur_addr_ca ^= 0xff;
+				s_ok = 0x00;
 				num2[0] = num2[1];
 			}
-			if (Cur_addr_ca == (BYTE)0xff)  
+			if (Cur_addr_ca == (BYTE)0xff)
 				ptrw4 = (UI *)ADDR_CA1;
 			else
 				ptrw4 = (UI *)ADDR_CA0;
 		}
 
-		if (s_ii1 == (BYTE)0x06) 
-		{ 
-			s_ii1 = 0; 
-			PWM_out_ptr -= 18;
+		if (s_ii1 == (BYTE)0x06) // 6*2*num2[0]
+		{
+			s_ii1 = 0;
+			PWM_out_ptr -= 18; //finish one cycle
 		}
-	}
+	} while (*ptrw4 == 0);
 
 	return;
 }
@@ -165,17 +128,19 @@ void rs485_int()
 	if (rsb0 & 0x20) /* 发送 */
 	{
 		rsb1++;
-		if (rsb1 < 14)  
+		if (rsb1 < 14)
 			sbuf = *(send_buf_ptr + rsb1);
-		else       
-		{ E_485r; }
+		else
+		{
+			E_485r;
+		}
 	}
 	if (rsb0 & 0x40) /* 接收 */
 	{
-		if (rsb2 < 100)	
-		{ 
-			*(rec_buf_ptr + rsb2) = sbuf; 
-			rsb2++; 
+		if (rsb2 < 100)
+		{
+			*(rec_buf_ptr + rsb2) = sbuf;
+			rsb2++;
 		}
 	}
 	return;
@@ -229,8 +194,8 @@ void main()   /* 主程序 */
 	init485();
 	/*  系统初始化  */
 	initsys();
-	
-	for ( port = 0; port < 8; port++)
+
+	for (port = 0; port < 8; port++)
 		read_adport(port);
 
 	while (1)
@@ -253,13 +218,13 @@ void main()   /* 主程序 */
 			case 3:read_adport(3); break;	//P0.3:IM4, 电热器电流;          1V - 2.5A
 			default:Motor_petection(); break;
 			}
-		}			
-						
+		}
+
 		//P0.7:U2C, 中间直流电压;        1V - 200V
 		//P0.6:I2C, 中间直流电流;        1V - 4A
 		//P0.5:U1B, 输入直流电压;        1V - 40V
 		//P0.4:I1C, 输入直流电流;        1V - 20A
-		read_adport(0x04); 
+		read_adport(0x04);
 		read_adport(0x05);
 		read_adport(0x06);
 		read_adport(0x07);
@@ -287,10 +252,10 @@ void main()   /* 主程序 */
 
 			(*msg1).cur_freqc -= (*msg1).addl;	     /* 工况转换降频 */
 
-			if ( ((*msg1).cur_mode & 0x03) == 0)
+			if (((*msg1).cur_mode & 0x03) == 0)
 				(*msg1).cur_freqc = F_STARTC;   /* 停机状态频率回到起点 */
 
-			if ((*msg1).cur_freqc >= FREQ_MAX_LIMIT)   
+			if ((*msg1).cur_freqc >= FREQ_MAX_LIMIT)
 				(*msg1).cur_freqc = FREQ_MAX_LIMIT; /* 运行频率限制 */
 
 
@@ -320,30 +285,30 @@ void main()   /* 主程序 */
 			{
 			case 0:
 			{
-				E_485t; rsb1 = 0; sbuf = *(send_buf_ptr + rsb1); rsb2 = 10; break; 
+				E_485t; rsb1 = 0; sbuf = *(send_buf_ptr + rsb1); rsb2 = 10; break;
 			}
 			case 1:
 			{ /* 信息处理、工况控制 */
-				treatmess(); 
-				break; 
-			} 
+				treatmess();
+				break;
+			}
 			case 2:
 			{/* 电机分断、数码显示 */
-				mc_off((*msg1).cur_mode); 
+				mc_off((*msg1).cur_mode);
 				disp();
-				break; 
-			} 
+				break;
+			}
 			case 3:
 			{ /* 先分后合，防止意外 */
-				mc_off((*msg1).cur_mode); 
-				mc_on((*msg1).cur_mode); 
-				break; 
-			} 
+				mc_off((*msg1).cur_mode);
+				mc_on((*msg1).cur_mode);
+				break;
+			}
 			case 4:
 			{ /* 通讯数据处理 */
-				proc_RS485_buff(); 
+				proc_RS485_buff();
 				break;
-			} 
+			}
 			default:break;
 			}
 		}
@@ -363,7 +328,7 @@ void main()   /* 主程序 */
 		if (s_control & 0x80) //First time calculation
 		{
 			s_control &= 0x3f;	/* 清首次计算标志，置数据无效 */
-			Cur_addr_ca ^= 0xff;  /* 转换当前发送区 */
+			Cur_addr_ca ^= 0xff;  /* 转换当前发送区 变为0x00 */
 			s_ok = 0x00;
 
 			num2[0] = num2[1];
@@ -373,7 +338,7 @@ void main()   /* 主程序 */
 			/* 时间模式指针 */
 			// the data in this address have been changed in the cal_time() 
 			// and there are only 3 unsigned int (8bytes) data.
-			if (Cur_addr_ca == (BYTE)0xff) 
+			if (Cur_addr_ca == (BYTE)0xff)
 				ptrw4 = ADDR_CA1;
 			else
 				ptrw4 = ADDR_CA0;     //the first time is CA0
@@ -382,16 +347,16 @@ void main()   /* 主程序 */
 			for (; *ptrw4 == 0; ptrw4++)
 			{
 				PWM_out_ptr++;
-				
-				if (s_ii3 != 2) 
-				{ 
-					s_ii3++; 
+
+				if (s_ii3 != 2)
+				{
+					s_ii3++;
 				}
 				else
-				{ 
-					s_ii3 = 0; 
-					s_ii2++; 
-					PWM_out_ptr -= 3; 
+				{
+					s_ii3 = 0;
+					s_ii2++;
+					PWM_out_ptr -= 3;
 				}
 				if (s_ii2 == num2[0])
 				{
@@ -404,15 +369,15 @@ void main()   /* 主程序 */
 						Cur_addr_ca ^= 0xff; s_ok = 0x00; num2[0] = num2[1];
 					}
 
-					if (Cur_addr_ca == (BYTE)0xff) 
+					if (Cur_addr_ca == (BYTE)0xff)
 						ptrw4 = ADDR_CA1;
 					else
 						ptrw4 = ADDR_CA0;
 				}
-				if (s_ii1 == (BYTE)0x06) 
-				{ 
-					s_ii1 = 0; 
-					PWM_out_ptr -= 18; 
+				if (s_ii1 == (BYTE)0x06)
+				{
+					s_ii1 = 0;
+					PWM_out_ptr -= 18;
 				}
 			}
 			// This is the first time to initialize software timer0 PWM output.
