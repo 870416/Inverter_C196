@@ -339,9 +339,9 @@ void main()   /* 主程序 */
 			// the data in this address have been changed in the cal_time() 
 			// and there are only 3 unsigned int (8bytes) data.
 			if (Cur_addr_ca == (BYTE)0xff)
-				ptrw4 = ADDR_CA1;
+				ptrw4 = (UI*)ADDR_CA1;
 			else
-				ptrw4 = ADDR_CA0;     //the first time is CA0
+				ptrw4 = (UI*)ADDR_CA0;     //the first time is CA0
 
 			// why ==0 ???
 			for (; *ptrw4 == 0; ptrw4++)
@@ -370,9 +370,9 @@ void main()   /* 主程序 */
 					}
 
 					if (Cur_addr_ca == (BYTE)0xff)
-						ptrw4 = ADDR_CA1;
+						ptrw4 = (UI*)ADDR_CA1;
 					else
-						ptrw4 = ADDR_CA0;
+						ptrw4 = (UI*)ADDR_CA0;
 				}
 				if (s_ii1 == (BYTE)0x06)
 				{
