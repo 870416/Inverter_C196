@@ -67,30 +67,66 @@ void soft_int()
 {
 	UI timer_interval = *ptrw4;
 	timer_interval -= AVG_ANSWER;
+	ptrw4++;
 
 	// output
 	s_x1 = *PWM_out_ptr;
 	s_x1 |= PWM_shutdown;
 	io1 |= s_x1;
 	ioport1 = io1;
+
+	if (s_ii3 != (BYTE)0x02) 
+	{ 
+		s_ii3 ++;  
+	}
+	else                
+	{ 
+		s_ii3 = 0; 
+		s_ii2++; 
+		PWM_out_ptr -= 3; 
+	}
 	hso_command = 0x38;  //bit6:0 timer1. bit5:1 set the pin. bit4:1 enable intterupt. 1000: software timer0
 	hso_time = timer1 + timer_interval;
+	PWM_out_ptr++;
+
 	io1 = s_x1;
 	ioport1 = io1;
 
-	do
+	if (s_ii2 == num2[0])  //2 * num2[0]
 	{
-		ptrw4++;
-		PWM_out_ptr++;
-		if (s_ii3 != (BYTE)0x02)
+		s_ii2 = 0;
+		s_ii1++;
+		PWM_out_ptr += 3;
+		if (s_ok == (BYTE)0xff)  /* 数据有效则更换发送区，并置无效标志 */
 		{
-			s_ii3++;
+			Cur_addr_ca ^= 0xff; 
+			s_ok = 0x00; 
+			num2[0] = num2[1];
 		}
+		if (Cur_addr_ca == (BYTE)0xff)  
+			ptrw4 = (UI *)ADDR_CA1;
 		else
-		{
-			s_ii3 = 0;
-			s_ii2++;
-			PWM_out_ptr -= 3;
+			ptrw4 = (UI *)ADDR_CA0;
+	}
+
+	if (s_ii1 == (BYTE)0x06) // 6*2*num2[0]
+	{ 
+		s_ii1 = 0; 
+		PWM_out_ptr -= 18; //finish one cycle
+	}
+
+//Meaningless
+	while ( *ptrw4 == 0)
+	{
+		PWM_out_ptr++;
+		ptrw4++;
+		if (s_ii3 != (BYTE)0x02) 
+		{ 
+			s_ii3++; 
+		}
+		else                
+		{ 
+			s_ii3 = 0; s_ii2++; PWM_out_ptr -= 3; 
 		}
 
 		if (s_ii2 == num2[0])  //2 * num2[0]
@@ -115,7 +151,7 @@ void soft_int()
 			s_ii1 = 0;
 			PWM_out_ptr -= 18; //finish one cycle
 		}
-	} while (*ptrw4 == 0);
+	}
 
 	return;
 }
@@ -339,9 +375,9 @@ void main()   /* 主程序 */
 			// the data in this address have been changed in the cal_time() 
 			// and there are only 3 unsigned int (8bytes) data.
 			if (Cur_addr_ca == (BYTE)0xff)
-				ptrw4 = (UI*)ADDR_CA1;
+				ptrw4 = ADDR_CA1;
 			else
-				ptrw4 = (UI*)ADDR_CA0;     //the first time is CA0
+				ptrw4 = ADDR_CA0;     //the first time is CA0
 
 			// why ==0 ???
 			for (; *ptrw4 == 0; ptrw4++)
@@ -370,9 +406,9 @@ void main()   /* 主程序 */
 					}
 
 					if (Cur_addr_ca == (BYTE)0xff)
-						ptrw4 = (UI*)ADDR_CA1;
+						ptrw4 = ADDR_CA1;
 					else
-						ptrw4 = (UI*)ADDR_CA0;
+						ptrw4 = ADDR_CA0;
 				}
 				if (s_ii1 == (BYTE)0x06)
 				{
