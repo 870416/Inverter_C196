@@ -368,6 +368,11 @@ void time_cal()   /* 用外部RAM */
 
 	
 	amplitude.ll = voltage * Ts;
+	
+	if (Cur_addr_ca == (BYTE)0xff) // the first time is 0xff, so data save into CA0
+		ptrw3 = (UI *)ADDR_CA0;
+	else
+		ptrw3 = (UI *)ADDR_CA1;
 
 	/* 时间计算 */
 	for (tmp = 0; tmp < num2[1]; tmp++)
@@ -460,10 +465,7 @@ void time_cal()   /* 用外部RAM */
 			tempw6 = MIN_PULSE;
 
 
-		if (Cur_addr_ca == (BYTE)0xff) // the first time is 0xff, so data save into CA0
-			ptrw3 = (UI *)ADDR_CA0;
-		else
-			ptrw3 = (UI *)ADDR_CA1;
+
 
 		*ptrw3 = tempw5;/* !!,顺序!! */
 		ptrw3++;
