@@ -366,7 +366,7 @@ void time_cal()   /* ”√Õ‚≤øRAM */
 	tempbw0.ll = 0x196e6b / tempw7; /* 10*fosc/6/16 */
 	Ts = tempbw0.bw.lo;      /* Ts */
 
-	// This is a rediculous flaw. The chip is too old to handle UI *UI in one line.
+	// This is a ridiculous flaw. The chip is too old to handle UI *UI in one line.
 	amplitude.ll = voltage;
  	amplitude.ll*= Ts;
 	

@@ -8,6 +8,12 @@ void Exception_handler()
 	/*  故障口数据读取         */
 	p_erro = *(Ptr_8255 + 0);
 	p_erro |= 0x20;     /* PA.5位悬而未用  */
+	
+#if OUTPUT_DEBUG
+	p_erro = 0xff;
+	s_erro = 0xff;
+#endif
+	
 	tempb0 = s_control;
 	tempb0 |= 0x0f;
 	if ((*msg1).dt45m >= 45)

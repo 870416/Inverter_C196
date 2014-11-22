@@ -39,7 +39,7 @@ BYTE     s_control, s_ok, Cur_addr_ca;
 /* 7/首次计算，6/数据有效，5/当前发送区，4/未用，*/
 /* 3/升压允许，2/升频    ，1/逆变允许  ，0/逆变过程，*/
 /* 为提高编译效率，将位6，5单列为s_ok，Cur_addr_ca */
-
+#define OUTPUT_DEBUG 1
 
 
 //------------------------------------------------------------------------
@@ -280,7 +280,10 @@ void main()   /* 主程序 */
 		{
 			(*msg1).bt20 = tempw0;
 
-
+#if OUTPUT_DEBUG
+			(*msg1).cur_freqc = 500;
+#else
+			
 			if (s_control & 0x04) // 0x04: Freq Raising enable
 				(*msg1).cur_freqc++;
 			else
@@ -290,6 +293,7 @@ void main()   /* 主程序 */
 
 			if (((*msg1).cur_mode & 0x03) == 0)
 				(*msg1).cur_freqc = F_STARTC;   /* 停机状态频率回到起点 */
+#endif
 
 			if ((*msg1).cur_freqc >= FREQ_MAX_LIMIT)
 				(*msg1).cur_freqc = FREQ_MAX_LIMIT; /* 运行频率限制 */
@@ -364,58 +368,7 @@ void main()   /* 主程序 */
 		if (s_control & 0x80) //First time calculation
 		{
 			s_control &= 0x3f;	/* 清首次计算标志，置数据无效 */
-			Cur_addr_ca ^= 0xff;  /* 转换当前发送区 变为0x00 */
-			s_ok = 0x00;
-
-			num2[0] = num2[1];
-			s_ii1 = 0;  /* 区数 */
-			s_ii2 = 0;  /* 段数 */
-			s_ii3 = 0;  /* 节数 */
-			/* 时间模式指针 */
-			// the data in this address have been changed in the cal_time() 
-			// and there are only 3 unsigned int (8bytes) data.
-			if (Cur_addr_ca == (BYTE)0xff)
-				ptrw4 = (UI*)ADDR_CA1;
-			else
-				ptrw4 = (UI*)ADDR_CA0;     //the first time is CA0
-
-			// why ==0 ???
-			for (; *ptrw4 == 0; ptrw4++)
-			{
-				PWM_out_ptr++;
-
-				if (s_ii3 != 2)
-				{
-					s_ii3++;
-				}
-				else
-				{
-					s_ii3 = 0;
-					s_ii2++;
-					PWM_out_ptr -= 3;
-				}
-				if (s_ii2 == num2[0])
-				{
-					s_ii2 = 0;
-					s_ii1++;
-					PWM_out_ptr += 3;
-
-					if (s_ok == (BYTE)0xff)  /* 数据有效则更换发送区，并置无效标志 */
-					{
-						Cur_addr_ca ^= 0xff; s_ok = 0x00; num2[0] = num2[1];
-					}
-
-					if (Cur_addr_ca == (BYTE)0xff)
-						ptrw4 = (UI*)ADDR_CA1;
-					else
-						ptrw4 = (UI*)ADDR_CA0;
-				}
-				if (s_ii1 == (BYTE)0x06)
-				{
-					s_ii1 = 0;
-					PWM_out_ptr -= 18;
-				}
-			}
+			
 			// This is the first time to initialize software timer0 PWM output.
 			// So when the interrupt's triggered, everything is ready to output.
 			disable();
