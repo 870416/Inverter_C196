@@ -346,7 +346,7 @@ void time_cal()   /* 用外部RAM */
 	tempbw0.ll *= 1060;  /* 电压修正 530V*2    */
 	/* 取消修正，稳频 */
 	tempbw0.ll /= 530;   // so I find a voltage corresponding to freq.
-	voltage = tempbw0.bw.lo;  //voltage * 2
+	voltage = tempbw0.bw.lo;  //voltage * 2   this changes the duty
 
 
 	/* 查表指针 */
@@ -366,8 +366,9 @@ void time_cal()   /* 用外部RAM */
 	tempbw0.ll = 0x196e6b / tempw7; /* 10*fosc/6/16 */
 	Ts = tempbw0.bw.lo;      /* Ts */
 
-	
-	amplitude.ll = voltage * Ts;
+	// This is a rediculous flaw. The chip is too old to handle UI *UI in one line.
+	amplitude.ll = voltage;
+ 	amplitude.ll*= Ts;
 	
 	if (Cur_addr_ca == (BYTE)0xff) // the first time is 0xff, so data save into CA0
 		ptrw3 = (UI *)ADDR_CA0;
