@@ -7,6 +7,7 @@ void init485();
 void init1820();
 void initsys();
 
+void delay1s();
 void delay45m();
 void disp();
 

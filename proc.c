@@ -280,6 +280,7 @@ void proc_RS485_buff()
 //
 void time_cal()   /* 用外部RAM */
 {
+
 	UI freq = (*msg1).cur_freqc;
 	UI voltage = 0;
 	UI *ptrw3;
@@ -287,9 +288,13 @@ void time_cal()   /* 用外部RAM */
 	UNA amplitude;
 	UI *ptr_sin1, *ptr_sin2;
 	BYTE tmp;
+
 	if (freq > 500) freq = 500;	
 	/* freq=300;        */
 	/* 分段数确定,转折频率<8K */ // PWM carrier freq.
+#if OUTPUT_DEBUG
+	num2[1] = 24;
+#else
 	if (freq < 111)  num2[1] = 120;
 	else if (freq < 167)  num2[1] = 80;
 	else if (freq < 222)  num2[1] = 60;
@@ -299,7 +304,7 @@ void time_cal()   /* 用外部RAM */
 	else if (freq < 556)  num2[1] = 24;
 	else if (freq < 667)  num2[1] = 20;
 	else                  num2[1] = 15;
-
+#endif
 	/* 分段数确定,转折频率<5K */
 	/*
 	if  (freq< 69)  num2[1]=120;
@@ -363,7 +368,7 @@ void time_cal()   /* 用外部RAM */
 
 	tempbw0.ll = (*msg1).cur_freqc * num2[1]; /* 10F*N */
 	tempw7 = tempbw0.bw.lo;
-	tempbw0.ll = 0x196e6b / tempw7; /* 10*fosc/6/16 */
+	tempbw0.ll = 0x196e6a / tempw7; /* 10*fosc/6/16  fosc=16m*/
 	Ts = tempbw0.bw.lo;      /* Ts */
 
 	// This is a ridiculous flaw. The chip is too old to handle UI *UI in one line.

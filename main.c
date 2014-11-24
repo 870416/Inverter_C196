@@ -33,13 +33,13 @@ BYTE p_erro, s_erro/*0xff: No err*/, s_set;
 BYTE tempb0, tempb1, tempb2;
 UI   tempw0, tempw1, tempw2, tempw3, tempw4, tempw5, tempw6, tempw7;
 BYTE     num2[2];    /* 分段数，0-当前，1-预备 */
-BYTE     s_x1, s_ii1, s_ii2, s_ii3;
+BYTE     s_ii1, s_ii2, s_ii3;
 UI       Sys_tic_10ms;
 BYTE     s_control, s_ok, Cur_addr_ca;
 /* 7/首次计算，6/数据有效，5/当前发送区，4/未用，*/
 /* 3/升压允许，2/升频    ，1/逆变允许  ，0/逆变过程，*/
 /* 为提高编译效率，将位6，5单列为s_ok，Cur_addr_ca */
-#define OUTPUT_DEBUG 1
+
 
 
 //------------------------------------------------------------------------
@@ -65,76 +65,47 @@ void hso_int() /* 120S */
 ********************************************/
 void soft_int()
 {
+	BYTE s_x1;
+	BYTE i;
 	UI timer_interval = *ptrw4;
 	timer_interval -= AVG_ANSWER;
-	ptrw4++;
 
 	// output
 	s_x1 = *PWM_out_ptr;
+#if OUTPUT_DEFINE
+	PWM_shutdown = 0;
+#endif
 	s_x1 |= PWM_shutdown;
-	io1 |= s_x1;
+	io1  |= s_x1;
 	ioport1 = io1;
-
-	if (s_ii3 != (BYTE)0x02) 
-	{ 
-		s_ii3 ++;  
-	}
-	else                
-	{ 
-		s_ii3 = 0; 
-		s_ii2++; 
-		PWM_out_ptr -= 3; 
-	}
 	hso_command = 0x38;  //bit6:0 timer1. bit5:1 set the pin. bit4:1 enable intterupt. 1000: software timer0
 	hso_time = timer1 + timer_interval;
-	PWM_out_ptr++;
 
-	io1 = s_x1;
-	ioport1 = io1;
-
-	if (s_ii2 == num2[0])  //2 * num2[0]
-	{
-		s_ii2 = 0;
-		s_ii1++;
-		PWM_out_ptr += 3;
-		if (s_ok == (BYTE)0xff)  /* 数据有效则更换发送区，并置无效标志 */
-		{
-			Cur_addr_ca ^= 0xff; 
-			s_ok = 0x00; 
-			num2[0] = num2[1];
-		}
-		if (Cur_addr_ca == (BYTE)0xff)  
-			ptrw4 = (UI *)ADDR_CA1;
-		else
-			ptrw4 = (UI *)ADDR_CA0;
-	}
-
-	if (s_ii1 == (BYTE)0x06) // 6*2*num2[0]
-	{ 
-		s_ii1 = 0; 
-		PWM_out_ptr -= 18; //finish one cycle
-	}
-
-//Meaningless
-	while ( *ptrw4 == 0)
+	do
 	{
 		PWM_out_ptr++;
 		ptrw4++;
-		if (s_ii3 != (BYTE)0x02) 
-		{ 
-			s_ii3++; 
+		if (s_ii3 != (BYTE)0x02)
+		{
+			s_ii3++;
 		}
-		else                
-		{ 
-			s_ii3 = 0; s_ii2++; PWM_out_ptr -= 3; 
+		else
+		{
+			s_ii3 = 0;
+			s_ii2++;
+			PWM_out_ptr -= 3;
 		}
+
+
+		io1 = s_x1;
+		ioport1 = io1;
 
 		if (s_ii2 == num2[0])  //2 * num2[0]
 		{
 			s_ii2 = 0;
 			s_ii1++;
 			PWM_out_ptr += 3;
-			if (s_ok == (BYTE)0xff)  /* 数据有效则更换发送区，并置无效标志 */
+			if (s_ok == (BYTE)0xff)  /* load new data by cal_time() */
 			{
 				Cur_addr_ca ^= 0xff;
 				s_ok = 0x00;
@@ -151,7 +122,9 @@ void soft_int()
 			s_ii1 = 0;
 			PWM_out_ptr -= 18; //finish one cycle
 		}
+
 	}
+	while (*ptrw4 == 0);
 
 	return;
 }
@@ -368,6 +341,13 @@ void main()   /* 主程序 */
 		if (s_control & 0x80) //First time calculation
 		{
 			s_control &= 0x3f;	/* 清首次计算标志，置数据无效 */
+			
+			num2[0] = num2[1];
+			
+			if (Cur_addr_ca == (BYTE)0xff)
+				ptrw4 = (UI *)ADDR_CA1;
+			else
+				ptrw4 = (UI *)ADDR_CA0;
 			
 			// This is the first time to initialize software timer0 PWM output.
 			// So when the interrupt's triggered, everything is ready to output.

@@ -62,12 +62,16 @@ P2.7:DS1820口线;
 #include <KC_SFRS.H>
 #include <KC_FUNCS.H>
 
+
+#define OUTPUT_DEBUG 0
+
 #define  uchar    unsigned char
 #define  BYTE     unsigned char
 #define  UI       unsigned int
 #define  UL       unsigned long 
 #define  NULL     0
 #define  BUSY     1
+
 
 #define ADDR_8255  0xA000 
 /* +0/A，故障口；+1/B，显示口；+2/C，前级控制口；+3/8255控制口  */
@@ -114,7 +118,7 @@ extern   UNA tempbw0, tempbw1;
 #define  NUM6          0x06   /* 分区数       */
 #define  NUM3          0x03   /* 分节数        */
 extern BYTE     num2[2];    /* 分段数，0-当前，1-预备 */
-extern BYTE     s_x1, s_ii1, s_ii2, s_ii3;
+extern BYTE     s_ii1, s_ii2, s_ii3;
 extern UI       Sys_tic_10ms;
 extern BYTE     s_control, s_ok, Cur_addr_ca;
 /* 7/首次计算，6/数据有效，5/当前发送区，4/未用，*/
