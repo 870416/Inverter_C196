@@ -63,68 +63,47 @@ void hso_int() /* 120S */
 /********************************************
 //	PWM output
 ********************************************/
-void soft_int()
-{
+BYTE test_output = 0xff;
+UI timer_interval = 10;
 	BYTE s_x1;
 	BYTE i;
-	UI timer_interval = *ptrw4;
-	timer_interval -= AVG_ANSWER;
+	BYTE ton, toff;
+					// fporiod = 20000; //200ms
+				// fduty  = 3;
+				// ton   = fporiod*fduty;
+				// ton  /= 3;
+				// toff  = fporiod*(10-fduty);
+				// toff /= 3;
+				
+				// timer_interval = ton;
+#define TIMER_OFFSET = 8;
+void soft_int()
+{
 
-	// output
-	s_x1 = *PWM_out_ptr;
-#if OUTPUT_DEFINE
-	PWM_shutdown = 0;
+
+#if OUTPUT_DEBUG
+	// PWM_shutdown = 0;
 #endif
-	s_x1 |= PWM_shutdown;
-	io1  |= s_x1;
+
+	io1     = test_output;
 	ioport1 = io1;
+	
 	hso_command = 0x38;  //bit6:0 timer1. bit5:1 set the pin. bit4:1 enable intterupt. 1000: software timer0
-	hso_time = timer1 + timer_interval;
-
-	do
+	hso_time = timer1 + timer_interval - TIMER_OFFSET;
+	
+	//load new data. The data has to been Ton/Toff in a pair.
+	
+	if(test_output == 0xff)
 	{
-		PWM_out_ptr++;
-		ptrw4++;
-		if (s_ii3 != (BYTE)0x02)
-		{
-			s_ii3++;
-		}
-		else
-		{
-			s_ii3 = 0;
-			s_ii2++;
-			PWM_out_ptr -= 3;
-		}
-
-
-		io1 = s_x1;
-		ioport1 = io1;
-
-		if (s_ii2 == num2[0])  //2 * num2[0]
-		{
-			s_ii2 = 0;
-			s_ii1++;
-			PWM_out_ptr += 3;
-			if (s_ok == (BYTE)0xff)  /* load new data by cal_time() */
-			{
-				Cur_addr_ca ^= 0xff;
-				s_ok = 0x00;
-				num2[0] = num2[1];
-			}
-			if (Cur_addr_ca == (BYTE)0xff)
-				ptrw4 = (UI *)ADDR_CA1;
-			else
-				ptrw4 = (UI *)ADDR_CA0;
-		}
-
-		if (s_ii1 == (BYTE)0x06) // 6*2*num2[0]
-		{
-			s_ii1 = 0;
-			PWM_out_ptr -= 18; //finish one cycle
-		}
-
+		test_output = 0x00;
+		timer_interval = toff;
 	}
-	while (*ptrw4 == 0);
+	else
+	{
+		test_output = 0xff;
+		timer_interval = ton;
+	}
+
 
 	return;
 }
@@ -184,7 +163,7 @@ void ext_int()  /* 故障处理 */
 }
 
 
-
+UI fporiod, fduty;
 
 void main()   /* 主程序 */
 {
@@ -325,36 +304,44 @@ void main()   /* 主程序 */
 			default:break;
 			}
 		}
-
+		
+		
 
 		/*  数据处理   */
 		/*  当前时间模式计算  */
-		if (s_ok == 0x00)  /* 数据无效则重新计算 */
-		{
-			if ((*msg1).cur_freqc != (*msg1).pre_freqc)  /* 不变不算 */
-			{
-				(*msg1).pre_freqc = (*msg1).cur_freqc;
-				time_cal(); //change ADDR_CA1; set up s_ok = 0xff
-			}
-		}
+		// if (s_ok == 0x00)  /* 数据无效则重新计算 */
+		// {
+			// if ((*msg1).cur_freqc != (*msg1).pre_freqc)  /* 不变不算 */
+			// {
+				// (*msg1).pre_freqc = (*msg1).cur_freqc;
+				// time_cal(); //change ADDR_CA1; set up s_ok = 0xff
+
+			// }
+		// }
+
+		// ton  = 17142;
+		// toff = 40000;//320us
+		ton  = 100;
+		toff = 200;
 
 		if (s_control & 0x80) //First time calculation
 		{
 			s_control &= 0x3f;	/* 清首次计算标志，置数据无效 */
 			
-			num2[0] = num2[1];
+			// num2[0] = num2[1];
 			
-			if (Cur_addr_ca == (BYTE)0xff)
-				ptrw4 = (UI *)ADDR_CA1;
-			else
-				ptrw4 = (UI *)ADDR_CA0;
+			// if (Cur_addr_ca == (BYTE)0xff)
+				// ptrw4 = (UI *)ADDR_CA1;
+			// else
+				// ptrw4 = (UI *)ADDR_CA0;
 			
 			// This is the first time to initialize software timer0 PWM output.
 			// So when the interrupt's triggered, everything is ready to output.
 			disable();
 			hso_command = 0x38; //bit6:0 timer1. bit5:1 set the pin. bit4:1 enable intterupt. 1000: software timer0
-			hso_time = timer1 + 0x04;
+			hso_time = timer1 + 4;
 			enable();
+				
 		}
 	}
 }

@@ -63,7 +63,7 @@ P2.7:DS1820¿ÚÏß;
 #include <KC_FUNCS.H>
 
 
-#define OUTPUT_DEBUG 0
+#define OUTPUT_DEBUG 1
 
 #define  uchar    unsigned char
 #define  BYTE     unsigned char
